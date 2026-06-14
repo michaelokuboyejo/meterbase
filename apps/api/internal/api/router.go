@@ -6,12 +6,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mykelokuboyejo/meterbase/apps/api/internal/alerts"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/auth"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/customers"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/ingest"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/meters"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/plans"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/usage"
+	"github.com/mykelokuboyejo/meterbase/apps/api/internal/webhooks"
 )
 
 func NewRouter(
@@ -23,6 +25,9 @@ func NewRouter(
 	eventListStore ingest.EventListStore,
 	usageRepo usage.UsageQuerier,
 	planRepo plans.Repository,
+	alertRepo alerts.AlertRepository,
+	alertMeterRepo alerts.MeterResolver,
+	webhookRepo webhooks.Repository,
 ) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -37,6 +42,8 @@ func NewRouter(
 		r.Route("/meters", meters.NewHandler(meterRepo, usageRepo).Routes)
 		r.Route("/events", ingest.NewHandler(eventStore, eventListStore).Routes)
 		r.Route("/plans", plans.NewHandler(planRepo, customerRepo, meterRepo, usageRepo).Routes)
+		r.Route("/alert-rules", alerts.NewHandler(alertRepo, alertMeterRepo).Routes)
+		r.Route("/webhooks", webhooks.NewHandler(webhookRepo).Routes)
 	})
 
 	return r

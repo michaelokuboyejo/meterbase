@@ -60,7 +60,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	usageRepo := usage.NewTimescaleUsageRepository(pool)
 	planStore := store.NewPlanStore(pool)
 
-	handler := api.NewRouter(pool, orgStore, customerStore, meterStore, eventStore, eventStore, usageRepo, planStore)
+	alertStore := store.NewAlertStore(pool)
+	handler := api.NewRouter(pool, orgStore, customerStore, meterStore, eventStore, eventStore, usageRepo, planStore, alertStore, meterStore, alertStore)
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
