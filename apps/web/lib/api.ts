@@ -1,14 +1,8 @@
-// Thin API client. In Phase 7 this is replaced by a typed client generated from
-// packages/contract/openapi.yaml (`make gen-sdk`). Keep all server access here.
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:48888";
+import { createClient } from "@meterbase/sdk";
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
-  if (!res.ok) {
-    throw new Error(`API ${res.status}: ${await res.text()}`);
-  }
-  return (await res.json()) as T;
-}
+// METERBASE_API_KEY is a server-only env var — never prefixed with NEXT_PUBLIC_.
+// NEXT_PUBLIC_API_URL is the base URL, safe to expose to the browser.
+export const api = createClient(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:48888",
+  process.env.METERBASE_API_KEY ?? ""
+);
