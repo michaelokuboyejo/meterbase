@@ -12,7 +12,8 @@
     "gen:sdk": "openapi-typescript packages/contract/openapi.yaml -o packages/sdk/src/schema.ts"
   },
   "devDependencies": {
-    "turbo": "^2.3.3"
+    "turbo": "^2.3.3",
+    "openapi-typescript": "^7.6.1"
   },
   "engines": {
     "node": ">=20"
