@@ -1,0 +1,11 @@
+{
+  "name": "@meterbase/sdk",
+  "version": "0.0.1",
+  "description": "MeterBase TypeScript client — generated from the OpenAPI contract.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.0"
+  }
+}
