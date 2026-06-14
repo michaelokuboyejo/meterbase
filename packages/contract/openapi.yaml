@@ -1,0 +1,727 @@
+openapi: 3.0.3
+info:
+  title: MeterBase API
+  version: "1.0.0"
+  description: >
+    Usage metering & monetization infrastructure. Ingest usage events, define
+    meters, query time-bucketed aggregates, compute cost from pricing models,
+    and fire usage-threshold alerts via signed webhooks.
+
+    This document is the source of truth for the v1 REST contract. JSON
+    properties are camelCase; the implementation maps to snake_case at the DB
+    boundary. All endpoints are scoped to the organization that owns the API key.
+servers:
+  - url: http://localhost:48888
+    description: Local
+  - url: https://api.meterbase.example
+    description: Production (placeholder)
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: Events
+  - name: Meters
+  - name: Customers
+  - name: Pricing
+  - name: Alerts
+  - name: Webhooks
+
+paths:
+  /v1/events:
+    post:
+      tags: [Events]
+      summary: Ingest one event or a batch of events
+      description: >
+        Accepts a single event object or an array of events. Events are
+        deduplicated on (org, id); a repeated id is accepted (2xx) but not
+        double-counted. Aggregation uses the caller-supplied `time` (event
+        time), not ingest time. Returns counts of received vs. duplicate events.
+      operationId: ingestEvents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Event'
+                - type: array
+                  items: { $ref: '#/components/schemas/Event' }
+                  minItems: 1
+            examples:
+              single:
+                value:
+                  id: "evt_01H8XGJ"
+                  type: "api_request"
+                  source: "api-gateway"
+                  subject: "user_123"
+                  time: "2026-06-12T10:00:00Z"
+                  data: { tokens: 1500, model: "gpt-x" }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngestResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [Events]
+      summary: List raw events (audit / debug)
+      operationId: listEvents
+      parameters:
+        - { in: query, name: from, schema: { type: string, format: date-time } }
+        - { in: query, name: to, schema: { type: string, format: date-time } }
+        - { in: query, name: subject, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string } }
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of raw events
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/StoredEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/events/export:
+    get:
+      tags: [Events]
+      summary: Export raw events as a stream (CSV or JSON)
+      operationId: exportEvents
+      parameters:
+        - { in: query, name: format, schema: { type: string, enum: [csv, json], default: json } }
+        - { in: query, name: from, schema: { type: string, format: date-time } }
+        - { in: query, name: to, schema: { type: string, format: date-time } }
+        - { in: query, name: subject, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string } }
+      responses:
+        '200':
+          description: Streamed export
+          content:
+            text/csv: { schema: { type: string } }
+            application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StoredEvent' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/meters:
+    post:
+      tags: [Meters]
+      summary: Create a meter
+      operationId: createMeter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MeterCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meter' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Meters]
+      summary: List meters
+      operationId: listMeters
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of meters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Meter' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/meters/{slug}:
+    parameters:
+      - { $ref: '#/components/parameters/Slug' }
+    get:
+      tags: [Meters]
+      summary: Get a meter
+      operationId: getMeter
+      responses:
+        '200':
+          description: The meter
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Meter' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Meters]
+      summary: Delete a meter
+      operationId: deleteMeter
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/meters/{slug}/query:
+    parameters:
+      - { $ref: '#/components/parameters/Slug' }
+    get:
+      tags: [Meters]
+      summary: Query time-bucketed aggregates for a meter
+      operationId: queryMeter
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date-time } }
+        - in: query
+          name: windowSize
+          required: true
+          schema: { $ref: '#/components/schemas/WindowSize' }
+        - { in: query, name: subject, schema: { type: string }, description: Filter by subject }
+        - { in: query, name: customerId, schema: { type: string }, description: Filter by customer }
+        - in: query
+          name: groupBy
+          description: Group results by one or more dimension paths (repeatable).
+          schema: { type: array, items: { type: string } }
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: Aggregated usage series
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/customers:
+    post:
+      tags: [Customers]
+      summary: Create a customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Customers]
+      summary: List customers
+      operationId: listCustomers
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of customers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Customer' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/customers/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    get:
+      tags: [Customers]
+      summary: Get a customer
+      operationId: getCustomer
+      responses:
+        '200':
+          description: The customer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Customers]
+      summary: Update a customer
+      operationId: updateCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Customer' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/plans:
+    post:
+      tags: [Pricing]
+      summary: Create a plan
+      operationId: createPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Plan' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/plans/{id}/rate-cards:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    post:
+      tags: [Pricing]
+      summary: Add a rate card to a plan
+      operationId: createRateCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RateCardCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RateCard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/plans/{id}/cost:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    get:
+      tags: [Pricing]
+      summary: Compute the cost of a customer's usage for a period
+      description: >
+        Computes cost from usage and the plan's rate cards. Does NOT issue an
+        invoice or move money. Must be deterministic and reproducible from raw
+        events.
+      operationId: computeCost
+      parameters:
+        - { in: query, name: customerId, required: true, schema: { type: string } }
+        - { in: query, name: from, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: Computed cost
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CostResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/alert-rules:
+    post:
+      tags: [Alerts]
+      summary: Create an alert rule
+      operationId: createAlertRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AlertRuleCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AlertRule' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [Alerts]
+      summary: List alert rules
+      operationId: listAlertRules
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of alert rules
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/AlertRule' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/webhooks:
+    post:
+      tags: [Webhooks]
+      summary: Register a webhook endpoint
+      description: The signing secret is returned ONCE in this response and never again.
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        '201':
+          description: Created (includes the signing secret, shown once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookCreateResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/webhooks/{id}/deliveries:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    get:
+      tags: [Webhooks]
+      summary: List delivery attempts for a webhook endpoint
+      operationId: listWebhookDeliveries
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of delivery records
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: "Pass the API key as a bearer token. Authorization: Bearer <api_key>."
+
+  parameters:
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+    Cursor:
+      in: query
+      name: cursor
+      schema: { type: string }
+      description: Opaque pagination cursor returned as `nextCursor`.
+    Slug:
+      in: path
+      name: slug
+      required: true
+      schema: { type: string }
+    Id:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Resource already exists
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Aggregation:
+      type: string
+      enum: [SUM, COUNT, AVG, MIN, MAX, UNIQUE_COUNT]
+    WindowSize:
+      type: string
+      enum: [MINUTE, HOUR, DAY, MONTH]
+    PricingModel:
+      type: string
+      enum: [PAYG, FLAT_PLUS_OVERAGE, TIERED]
+
+    Event:
+      type: object
+      required: [id, type, subject]
+      properties:
+        id:
+          type: string
+          description: Caller-supplied unique id. Dedup key on (org, id).
+        type:
+          type: string
+          description: Must match a meter's eventType to be aggregated.
+        source: { type: string }
+        subject:
+          type: string
+          description: Technical consumer (e.g. user_123). Maps to a customer.
+        time:
+          type: string
+          format: date-time
+          description: Event time. Defaults to server receipt time if omitted.
+        data:
+          type: object
+          additionalProperties: true
+          description: Arbitrary JSON payload; aggregated value & dimensions live here.
+
+    StoredEvent:
+      allOf:
+        - $ref: '#/components/schemas/Event'
+        - type: object
+          properties:
+            ingestedAt: { type: string, format: date-time }
+            customerId: { type: string, nullable: true }
+
+    IngestResponse:
+      type: object
+      required: [received, duplicates]
+      properties:
+        received: { type: integer, description: Events accepted and stored. }
+        duplicates: { type: integer, description: Events skipped as duplicates. }
+
+    MeterCreate:
+      type: object
+      required: [slug, eventType, aggregation]
+      properties:
+        slug: { type: string, example: api_requests }
+        eventType: { type: string, example: api_request }
+        aggregation: { $ref: '#/components/schemas/Aggregation' }
+        valueProperty:
+          type: string
+          nullable: true
+          description: JSON path into data to aggregate (e.g. "tokens"). Null for COUNT.
+          example: tokens
+        groupBy:
+          type: array
+          items: { type: string }
+          default: []
+          description: Dimension paths in data (e.g. ["model","region"]).
+
+    Meter:
+      allOf:
+        - $ref: '#/components/schemas/MeterCreate'
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id: { type: string }
+            createdAt: { type: string, format: date-time }
+
+    QueryResult:
+      type: object
+      required: [meter, windowSize, data]
+      properties:
+        meter: { type: string }
+        windowSize: { $ref: '#/components/schemas/WindowSize' }
+        data:
+          type: array
+          items:
+            type: object
+            required: [bucket, value]
+            properties:
+              bucket: { type: string, format: date-time }
+              value: { type: number }
+              groups:
+                type: object
+                additionalProperties: { type: string }
+                description: Present only when groupBy was supplied.
+
+    CustomerCreate:
+      type: object
+      required: [externalId]
+      properties:
+        externalId: { type: string, description: The org's own id for this customer. }
+        name: { type: string, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+
+    CustomerPatch:
+      type: object
+      properties:
+        name: { type: string, nullable: true }
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Customer:
+      allOf:
+        - $ref: '#/components/schemas/CustomerCreate'
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id: { type: string }
+            createdAt: { type: string, format: date-time }
+
+    Plan:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RateCardCreate:
+      type: object
+      required: [meterId, model, config]
+      properties:
+        meterId: { type: string }
+        model: { $ref: '#/components/schemas/PricingModel' }
+        currency: { type: string, default: USD }
+        config:
+          type: object
+          additionalProperties: true
+          description: >
+            Model-specific config. PAYG: { unitPrice }. FLAT_PLUS_OVERAGE:
+            { flatFee, included, overagePrice }. TIERED: { mode: "graduated"|"volume",
+            tiers: [ { upTo, unitPrice } ] } (last tier upTo null = infinity).
+          example:
+            mode: graduated
+            tiers:
+              - { upTo: 1000, unitPrice: 0.01 }
+              - { upTo: null, unitPrice: 0.005 }
+
+    RateCard:
+      allOf:
+        - $ref: '#/components/schemas/RateCardCreate'
+        - type: object
+          required: [id, planId]
+          properties:
+            id: { type: string }
+            planId: { type: string }
+
+    CostResponse:
+      type: object
+      required: [currency, total, lineItems]
+      properties:
+        currency: { type: string }
+        total: { type: number }
+        lineItems:
+          type: array
+          items:
+            type: object
+            required: [meter, usage, cost]
+            properties:
+              meter: { type: string }
+              usage: { type: number }
+              cost: { type: number }
+
+    AlertRuleCreate:
+      type: object
+      required: [meterId, scope, window, threshold]
+      properties:
+        meterId: { type: string }
+        scope:
+          type: string
+          enum: [subject, customer, global]
+        window: { $ref: '#/components/schemas/WindowSize' }
+        threshold: { type: number }
+        enabled: { type: boolean, default: true }
+
+    AlertRule:
+      allOf:
+        - $ref: '#/components/schemas/AlertRuleCreate'
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id: { type: string }
+            createdAt: { type: string, format: date-time }
+
+    WebhookCreateResponse:
+      type: object
+      required: [id, url, secret, enabled]
+      properties:
+        id: { type: string }
+        url: { type: string, format: uri }
+        secret:
+          type: string
+          description: HMAC signing secret. Shown ONCE; store it now.
+        enabled: { type: boolean }
+
+    WebhookDelivery:
+      type: object
+      required: [id, endpointId, eventType, status, attempts, createdAt]
+      properties:
+        id: { type: string }
+        endpointId: { type: string }
+        eventType: { type: string, example: alert.triggered }
+        payload:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [pending, succeeded, failed]
+        attempts: { type: integer }
+        lastAttempt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    Page:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+          description: Pass as `cursor` to fetch the next page. Null when no more.
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }

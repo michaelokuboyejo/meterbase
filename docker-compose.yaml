@@ -1,0 +1,56 @@
+# Full MeterBase stack: database + Go API + Next.js web.
+#
+#   docker compose up -d --build        # everything
+#   docker compose up -d --wait db      # just the database (for host-based dev)
+#
+# The api and web images build from Phase 0+ code; until the apps are implemented,
+# only `db` will start cleanly. For active development prefer host dev:
+#   make up-db && make dev-api   (one terminal)   +   make dev-web   (another)
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16   # pin to a specific version for prod
+    environment:
+      POSTGRES_USER: meterbase
+      POSTGRES_PASSWORD: meterbase
+      POSTGRES_DB: meterbase
+    ports:
+      - "5432:5432"
+    volumes:
+      - meterbase_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meterbase -d meterbase"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://meterbase:meterbase@db:5432/meterbase?sslmode=disable
+      PORT: "48888"
+    ports:
+      - "48888:48888"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      # Used by the browser, so it must point at the host-published API port.
+      NEXT_PUBLIC_API_URL: http://localhost:48888
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  meterbase_pgdata:

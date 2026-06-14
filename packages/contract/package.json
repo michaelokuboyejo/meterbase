@@ -1,0 +1,8 @@
+{
+  "name": "@meterbase/contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MeterBase REST contract (OpenAPI 3.0.3). Source of truth for the API, web client, and SDKs.",
+  "files": ["openapi.yaml"],
+  "main": "openapi.yaml"
+}

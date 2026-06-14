@@ -1,0 +1,12 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/meterbase ./cmd/meterbase"
+  bin = "./tmp/meterbase"
+  include_ext = ["go", "sql", "yaml"]
+  exclude_dir = ["tmp", "bin", "migrations"]
+  delay = 300
+
+[misc]
+  clean_on_exit = true

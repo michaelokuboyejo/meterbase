@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  MeterBase theme — design direction: developer/billing tool.
+  Restraint (Notion) + crisp type hierarchy (Stripe). Quiet cool-neutral surfaces,
+  hairline borders over heavy shadows, ONE disciplined violet accent used sparingly.
+  The product's content is numbers and IDs — see --font-mono and tabular-nums usage.
+*/
+
+:root {
+  --radius: 0.625rem;
+
+  --background: oklch(0.994 0.001 250);
+  --foreground: oklch(0.21 0.012 264);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.012 264);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.012 264);
+
+  /* The one accent. Used for primary actions, focus, and active nav only. */
+  --primary: oklch(0.545 0.196 281);
+  --primary-foreground: oklch(0.985 0.003 280);
+
+  --secondary: oklch(0.972 0.004 264);
+  --secondary-foreground: oklch(0.30 0.012 264);
+
+  --muted: oklch(0.972 0.004 264);
+  --muted-foreground: oklch(0.553 0.012 264);
+
+  --accent: oklch(0.965 0.008 281);
+  --accent-foreground: oklch(0.30 0.012 264);
+
+  --destructive: oklch(0.585 0.214 27);
+  --destructive-foreground: oklch(0.985 0.003 280);
+
+  --border: oklch(0.922 0.004 264);
+  --input: oklch(0.922 0.004 264);
+  --ring: oklch(0.545 0.196 281);
+
+  /* Restrained categorical sequence for charts. */
+  --chart-1: oklch(0.545 0.196 281);
+  --chart-2: oklch(0.62 0.13 230);
+  --chart-3: oklch(0.68 0.12 165);
+  --chart-4: oklch(0.72 0.15 70);
+  --chart-5: oklch(0.64 0.18 12);
+
+  --sidebar: oklch(0.985 0.002 264);
+  --sidebar-foreground: oklch(0.21 0.012 264);
+  --sidebar-primary: oklch(0.545 0.196 281);
+  --sidebar-primary-foreground: oklch(0.985 0.003 280);
+  --sidebar-accent: oklch(0.965 0.008 281);
+  --sidebar-accent-foreground: oklch(0.30 0.012 264);
+  --sidebar-border: oklch(0.922 0.004 264);
+  --sidebar-ring: oklch(0.545 0.196 281);
+}
+
+.dark {
+  --background: oklch(0.165 0.006 266);
+  --foreground: oklch(0.96 0.003 264);
+
+  --card: oklch(0.205 0.006 266);
+  --card-foreground: oklch(0.96 0.003 264);
+  --popover: oklch(0.205 0.006 266);
+  --popover-foreground: oklch(0.96 0.003 264);
+
+  --primary: oklch(0.68 0.17 285);
+  --primary-foreground: oklch(0.18 0.02 282);
+
+  --secondary: oklch(0.255 0.007 266);
+  --secondary-foreground: oklch(0.96 0.003 264);
+
+  --muted: oklch(0.255 0.007 266);
+  --muted-foreground: oklch(0.70 0.012 264);
+
+  --accent: oklch(0.275 0.012 282);
+  --accent-foreground: oklch(0.96 0.003 264);
+
+  --destructive: oklch(0.66 0.20 25);
+  --destructive-foreground: oklch(0.96 0.003 264);
+
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.60 0.16 285);
+
+  --chart-1: oklch(0.68 0.17 285);
+  --chart-2: oklch(0.66 0.13 230);
+  --chart-3: oklch(0.72 0.12 165);
+  --chart-4: oklch(0.76 0.15 70);
+  --chart-5: oklch(0.68 0.18 12);
+
+  --sidebar: oklch(0.185 0.006 266);
+  --sidebar-foreground: oklch(0.96 0.003 264);
+  --sidebar-primary: oklch(0.68 0.17 285);
+  --sidebar-primary-foreground: oklch(0.18 0.02 282);
+  --sidebar-accent: oklch(0.275 0.012 282);
+  --sidebar-accent-foreground: oklch(0.96 0.003 264);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.60 0.16 285);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* Numbers are the content of this product: align them. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}

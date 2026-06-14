@@ -1,0 +1,20 @@
+{
+  "name": "meterbase",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MeterBase monorepo — Go metering API + Next.js dashboard.",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "gen:sdk": "openapi-typescript packages/contract/openapi.yaml -o packages/sdk/src/schema.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

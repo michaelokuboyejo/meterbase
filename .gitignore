@@ -1,0 +1,54 @@
+# Binaries & build output
+/bin/
+/dist/
+meterbase
+*.exe
+*.out
+
+# Test & coverage
+*.test
+coverage.out
+coverage.html
+
+# Env & secrets (never commit API keys or webhook secrets)
+.env
+.env.*
+*.local
+
+# Personal Claude Code overrides (per Claude Code docs: keep out of git)
+CLAUDE.local.md
+
+# Air (hot reload) temp dir
+/tmp/
+.air.toml.local
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Go workspace
+go.work
+go.work.sum
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Turborepo
+.turbo/
+
+# Generated SDK types (regenerated from the contract via `make gen-sdk`)
+packages/sdk/src/schema.ts
+
+# Generated SDK artifacts that shouldn't be hand-edited (keep committed source though)
+# /sdk/**/generated/
