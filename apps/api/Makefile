@@ -45,6 +45,11 @@ build: ## Compile the binary to $(BIN)
 test: ## Run all tests with the race detector
 	go test ./... -race -count=1
 
+.PHONY: test-e2e
+test-e2e: ## Run E2E API tests against a live database (requires DATABASE_URL)
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is required. Set it or run: make up-db first"; exit 1)
+	go test ./internal/e2e/... -v -race -count=1 -timeout 120s
+
 .PHONY: lint
 lint: ## Run linters (installs golangci-lint hint if missing)
 	@if command -v $(GOLANGCI_LINT) >/dev/null 2>&1; then \
