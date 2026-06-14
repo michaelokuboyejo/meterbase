@@ -1,5 +1,5 @@
 import createFetchClient from "openapi-fetch";
-import type { paths } from "./schema.js";
+import type { paths } from "./schema";
 
 /**
  * Creates a type-safe MeterBase API client.
