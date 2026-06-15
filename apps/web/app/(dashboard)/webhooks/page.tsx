@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { RegisterWebhookDialog } from "./register-webhook-dialog";
 
+export const dynamic = "force-dynamic";
+
 export default async function WebhooksPage() {
   const res = await api.GET("/v1/webhooks", { params: { query: { limit: 100 } } });
   const webhooks = res.data?.data ?? [];

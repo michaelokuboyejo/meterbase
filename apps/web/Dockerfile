@@ -1,5 +1,6 @@
 # Build context is the REPO ROOT (see docker-compose.yaml).
-FROM node:22-alpine AS base
+# Use Debian-based images; Alpine (musl) lacks lightningcss native binaries for arm64.
+FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="/pnpm:$PATH"
 RUN corepack enable

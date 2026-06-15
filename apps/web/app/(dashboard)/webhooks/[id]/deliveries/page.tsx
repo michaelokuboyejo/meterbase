@@ -3,6 +3,8 @@ import { ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function DeliveriesPage({
   params,
 }: {

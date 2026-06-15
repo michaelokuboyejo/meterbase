@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { UsageChart } from "@/components/usage-chart";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 const AGG_LABELS: Record<string, string> = {
   SUM: "Sum",
   COUNT: "Count",

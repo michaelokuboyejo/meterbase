@@ -1,6 +1,8 @@
 import { api } from "@/lib/api";
 import { CreateCustomerDialog } from "./create-customer-dialog";
 
+export const dynamic = "force-dynamic";
+
 export default async function CustomersPage() {
   const res = await api.GET("/v1/customers", { params: { query: { limit: 100 } } });
   const customers = res.data?.data ?? [];

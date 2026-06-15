@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function MetersPage() {
   const res = await api.GET("/v1/meters", { params: { query: { limit: 100 } } });
   const meters = res.data?.data ?? [];

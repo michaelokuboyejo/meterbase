@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { CreateAlertDialog } from "./create-alert-dialog";
 
+export const dynamic = "force-dynamic";
+
 const fmt = new Intl.NumberFormat("en-US", { notation: "compact" });
 
 export default async function AlertsPage() {

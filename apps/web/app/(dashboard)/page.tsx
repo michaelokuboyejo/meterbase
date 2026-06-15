@@ -10,6 +10,8 @@ import {
 import { UsageChart } from "@/components/usage-chart";
 import { api } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function OverviewPage() {
   const now = new Date();
   const fourteenDaysAgo = new Date(now);

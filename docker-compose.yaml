@@ -43,7 +43,9 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
     environment:
-      # Used by the browser, so it must point at the host-published API port.
+      # Server-side (RSC) fetches use the Docker service name.
+      API_URL: http://api:48888
+      # Browser-side fetches use the host-published port.
       NEXT_PUBLIC_API_URL: http://localhost:48888
       NODE_ENV: production
     ports:
