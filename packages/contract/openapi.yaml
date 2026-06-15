@@ -385,6 +385,25 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /v1/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhook endpoints
+      operationId: listWebhooks
+      parameters:
+        - { $ref: '#/components/parameters/Limit' }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses:
+        '200':
+          description: A page of webhook endpoints
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      data: { type: array, items: { $ref: '#/components/schemas/Webhook' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [Webhooks]
       summary: Register a webhook endpoint
@@ -678,6 +697,14 @@ components:
           properties:
             id: { type: string }
             createdAt: { type: string, format: date-time }
+
+    Webhook:
+      type: object
+      required: [id, url, enabled]
+      properties:
+        id: { type: string }
+        url: { type: string, format: uri }
+        enabled: { type: boolean }
 
     WebhookCreateResponse:
       type: object

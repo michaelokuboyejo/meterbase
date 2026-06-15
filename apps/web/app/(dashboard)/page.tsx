@@ -9,9 +9,12 @@ import {
 } from "@/components/ui/card";
 import { UsageChart } from "@/components/usage-chart";
 import { api } from "@/lib/api";
-import { MOCK_OVERVIEW_QUERY } from "@/lib/fixtures";
 
 export default async function OverviewPage() {
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
+
   const [metersRes, eventsRes] = await Promise.all([
     api.GET("/v1/meters", { params: { query: { limit: 100 } } }),
     api.GET("/v1/events", { params: { query: { limit: 5 } } }),
@@ -19,6 +22,26 @@ export default async function OverviewPage() {
 
   const meters = metersRes.data?.data ?? [];
   const recent = eventsRes.data?.data ?? [];
+
+  // Query the first meter's usage for the overview chart, if any meters exist.
+  let chartData: { bucket: string; value: number }[] = [];
+  const chartMeter = meters[0]?.slug ?? "";
+  if (chartMeter) {
+    const queryRes = await api.GET("/v1/meters/{slug}/query", {
+      params: {
+        path: { slug: chartMeter },
+        query: {
+          from: fourteenDaysAgo.toISOString(),
+          to: now.toISOString(),
+          windowSize: "DAY",
+        },
+      },
+    });
+    chartData = (queryRes.data?.data ?? []).map((pt) => ({
+      bucket: pt.bucket,
+      value: pt.value,
+    }));
+  }
 
   const metrics = [
     { label: "Events today", value: "—", delta: "", up: true },
@@ -64,12 +87,20 @@ export default async function OverviewPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Usage</CardTitle>
-            <CardDescription>Total metered events, last 14 days</CardDescription>
+            <CardDescription>
+              {chartMeter ? (
+                <>
+                  <span className="font-mono">{chartMeter}</span> · last 14 days
+                </>
+              ) : (
+                "Total metered events, last 14 days"
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <UsageChart
-              data={MOCK_OVERVIEW_QUERY.data}
-              windowSize={MOCK_OVERVIEW_QUERY.windowSize}
+              data={chartData}
+              windowSize="DAY"
               label="Events"
             />
           </CardContent>

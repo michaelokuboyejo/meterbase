@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { MOCK_METERS } from "@/lib/fixtures";
+import { api } from "@/lib/api";
 
-export default function MetersPage() {
-  const meters = MOCK_METERS;
+export default async function MetersPage() {
+  const res = await api.GET("/v1/meters", { params: { query: { limit: 100 } } });
+  const meters = res.data?.data ?? [];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-8">

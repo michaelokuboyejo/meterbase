@@ -52,6 +52,7 @@ func generateSecret() (string, error) {
 type Repository interface {
 	CreateWebhookEndpoint(ctx context.Context, orgID, url, secret string) (*store.WebhookEndpoint, error)
 	GetWebhookEndpoint(ctx context.Context, orgID, endpointID string) (*store.WebhookEndpoint, error)
+	ListWebhookEndpoints(ctx context.Context, orgID string, limit int, cursor string) ([]*store.WebhookEndpoint, string, error)
 	ListDeliveriesByEndpoint(ctx context.Context, orgID, endpointID string, limit int, cursor string) ([]*store.WebhookDelivery, string, error)
 }
 
@@ -67,8 +68,48 @@ func NewHandler(repo Repository) *Handler {
 
 // Routes registers webhook routes.
 func (h *Handler) Routes(r chi.Router) {
+	r.Get("/", h.list)
 	r.Post("/", h.create)
 	r.Get("/{id}/deliveries", h.listDeliveries)
+}
+
+func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := auth.OrgIDFromContext(r.Context())
+	if !ok {
+		respond.Error(w, http.StatusUnauthorized, "unauthorized", "missing org")
+		return
+	}
+
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+
+	eps, nextCursor, err := h.repo.ListWebhookEndpoints(r.Context(), orgID, limit, r.URL.Query().Get("cursor"))
+	if err != nil {
+		respond.Error(w, http.StatusInternalServerError, "internal", err.Error())
+		return
+	}
+
+	items := make([]any, len(eps))
+	for i, ep := range eps {
+		items[i] = map[string]any{
+			"id":      ep.ID,
+			"url":     ep.URL,
+			"enabled": ep.Enabled,
+		}
+	}
+
+	var nc *string
+	if nextCursor != "" {
+		nc = &nextCursor
+	}
+	respond.JSON(w, http.StatusOK, map[string]any{
+		"data":       items,
+		"nextCursor": nc,
+	})
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {

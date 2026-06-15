@@ -294,6 +294,48 @@ func (s *AlertStore) ListEnabledEndpointsByOrg(ctx context.Context, orgID string
 	return eps, rows.Err()
 }
 
+// ListWebhookEndpoints returns a paginated list of all endpoints for orgID (enabled and disabled).
+func (s *AlertStore) ListWebhookEndpoints(ctx context.Context, orgID string, limit int, cursor string) ([]*WebhookEndpoint, string, error) {
+	var rows pgx.Rows
+	var err error
+	if cursor == "" {
+		rows, err = s.pool.Query(ctx,
+			`SELECT id, org_id, url, secret, enabled FROM webhook_endpoints
+			 WHERE org_id=$1 ORDER BY id LIMIT $2`,
+			orgID, limit+1,
+		)
+	} else {
+		rows, err = s.pool.Query(ctx,
+			`SELECT id, org_id, url, secret, enabled FROM webhook_endpoints
+			 WHERE org_id=$1 AND id > $2::uuid ORDER BY id LIMIT $3`,
+			orgID, cursor, limit+1,
+		)
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("list webhook endpoints: %w", err)
+	}
+	defer rows.Close()
+
+	var eps []*WebhookEndpoint
+	for rows.Next() {
+		var ep WebhookEndpoint
+		if err := rows.Scan(&ep.ID, &ep.OrgID, &ep.URL, &ep.Secret, &ep.Enabled); err != nil {
+			return nil, "", fmt.Errorf("scan endpoint: %w", err)
+		}
+		eps = append(eps, &ep)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", err
+	}
+
+	nextCursor := ""
+	if len(eps) > limit {
+		nextCursor = eps[limit].ID
+		eps = eps[:limit]
+	}
+	return eps, nextCursor, nil
+}
+
 // CreateDelivery enqueues a delivery for the given endpoint.
 func (s *AlertStore) CreateDelivery(ctx context.Context, endpointID, eventType string, payload json.RawMessage) (*WebhookDelivery, error) {
 	var d WebhookDelivery

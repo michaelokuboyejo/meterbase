@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { UsageChart } from "@/components/usage-chart";
-import { MOCK_METERS, mockQueryResult } from "@/lib/fixtures";
+import { api } from "@/lib/api";
 
 const AGG_LABELS: Record<string, string> = {
   SUM: "Sum",
@@ -27,20 +27,38 @@ export default async function MeterDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const meter = MOCK_METERS.find((m) => m.slug === slug);
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+
+  const [meterRes, queryRes] = await Promise.all([
+    api.GET("/v1/meters/{slug}", { params: { path: { slug } } }),
+    api.GET("/v1/meters/{slug}/query", {
+      params: {
+        path: { slug },
+        query: {
+          from: thirtyDaysAgo.toISOString(),
+          to: now.toISOString(),
+          windowSize: "DAY",
+        },
+      },
+    }),
+  ]);
+
+  const meter = meterRes.data;
 
   if (!meter) {
     return (
       <main className="mx-auto w-full max-w-6xl px-6 py-8">
         <p className="text-muted-foreground text-sm">
-          Meter{" "}
-          <span className="font-mono">{slug}</span> not found.
+          Meter <span className="font-mono">{slug}</span> not found.
         </p>
       </main>
     );
   }
 
-  const query = mockQueryResult(slug, "DAY");
+  const queryData = queryRes.data?.data ?? [];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-8">
@@ -97,7 +115,7 @@ export default async function MeterDetailPage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {meter.groupBy.length > 0 ? (
+            {meter.groupBy && meter.groupBy.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {meter.groupBy.map((dim) => (
                   <Badge key={dim} variant="secondary" className="font-mono">
@@ -123,8 +141,8 @@ export default async function MeterDetailPage({
         </CardHeader>
         <CardContent>
           <UsageChart
-            data={query.data}
-            windowSize={query.windowSize}
+            data={queryData}
+            windowSize="DAY"
             label={AGG_LABELS[meter.aggregation] ?? meter.aggregation}
             className="h-56"
           />
