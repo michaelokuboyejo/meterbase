@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/api"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/auth"
+	"github.com/mykelokuboyejo/meterbase/apps/api/internal/dashauth"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/store"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/usage"
 )
@@ -61,7 +62,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	planStore := store.NewPlanStore(pool)
 
 	alertStore := store.NewAlertStore(pool)
-	handler := api.NewRouter(pool, orgStore, customerStore, meterStore, eventStore, eventStore, usageRepo, planStore, alertStore, meterStore, alertStore)
+	dashStore := dashauth.NewStore(pool)
+	handler := api.NewRouter(pool, "*", orgStore, dashStore, customerStore, meterStore, eventStore, eventStore, usageRepo, planStore, alertStore, meterStore, alertStore)
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 

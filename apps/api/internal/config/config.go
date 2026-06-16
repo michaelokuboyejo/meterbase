@@ -5,12 +5,14 @@ import "os"
 type Config struct {
 	DatabaseURL string
 	Port        string
+	CORSOrigin  string
 }
 
 func Load() Config {
 	return Config{
 		DatabaseURL: getenv("DATABASE_URL", "postgres://meterbase:meterbase@localhost:5432/meterbase?sslmode=disable"),
 		Port:        getenv("PORT", "48888"),
+		CORSOrigin:  getenv("CORS_ORIGIN", "http://localhost:3000"),
 	}
 }
 

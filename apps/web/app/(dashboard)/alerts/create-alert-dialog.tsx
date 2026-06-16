@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { createAlertAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -65,10 +65,7 @@ export function CreateAlertDialog({ meters }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await api.POST("/v1/alert-rules", {
-        body: { meterId, scope: scope as AlertScope, window: window as WindowSize, threshold: t, enabled: true },
-      });
-      if (error) throw new Error((error as { error?: { message?: string } }).error?.message ?? "Unknown error");
+      await createAlertAction({ meterId, scope: scope as AlertScope, window: window as WindowSize, threshold: t });
       toast.success("Alert rule created");
       handleOpenChange(false);
     } catch (err) {

@@ -27,6 +27,10 @@ migrate-down: ## Roll back the most recent migration
 migrate-status: ## Show migration status
 	$(GOOSE) -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" status
 
+.PHONY: seed
+seed: ## Seed the database with a first org, API key, and admin dashboard user
+	go run $(PKG) seed
+
 .PHONY: server
 server: ## Run the API server (hot reload via air if installed, else go run)
 	@if command -v air >/dev/null 2>&1; then \

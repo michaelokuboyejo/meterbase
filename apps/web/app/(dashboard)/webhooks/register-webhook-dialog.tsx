@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { registerWebhookAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,8 +48,7 @@ export function RegisterWebhookDialog() {
     }
     setState((s) => ({ ...s, error: null }));
     try {
-      const { data, error } = await api.POST("/v1/webhooks", { body: { url } });
-      if (error || !data) throw new Error((error as { error?: { message?: string } })?.error?.message ?? "Failed to register");
+      const data = await registerWebhookAction(url);
       setState({ phase: "secret", id: data.id, url: data.url, secret: data.secret, copied: false });
     } catch (err) {
       setState((s) => ({ ...s, error: err instanceof Error ? err.message : "Failed to register endpoint. Try again." }));

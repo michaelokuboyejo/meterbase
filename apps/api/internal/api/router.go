@@ -9,6 +9,7 @@ import (
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/alerts"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/auth"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/customers"
+	"github.com/mykelokuboyejo/meterbase/apps/api/internal/dashauth"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/ingest"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/meters"
 	"github.com/mykelokuboyejo/meterbase/apps/api/internal/plans"
@@ -18,7 +19,9 @@ import (
 
 func NewRouter(
 	pool *pgxpool.Pool,
+	corsOrigin string,
 	resolver auth.KeyResolver,
+	dashStore *dashauth.Store,
 	customerRepo customers.Repository,
 	meterRepo meters.Repository,
 	eventStore ingest.EventStore,
@@ -32,9 +35,20 @@ func NewRouter(
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
+	r.Use(corsMiddleware(corsOrigin))
 
 	r.Get("/healthz", handleHealthz)
 	r.Get("/readyz", handleReadyz(pool))
+
+	dashHandler := dashauth.NewHandler(dashStore)
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/login", dashHandler.Login)
+		r.Group(func(r chi.Router) {
+			r.Use(dashauth.DashMiddleware(dashStore))
+			r.Post("/logout", dashHandler.Logout)
+			r.Get("/me", dashHandler.Me)
+		})
+	})
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(auth.Middleware(resolver))

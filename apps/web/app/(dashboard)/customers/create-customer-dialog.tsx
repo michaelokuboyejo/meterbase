@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { createCustomerAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,10 +43,7 @@ export function CreateCustomerDialog() {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await api.POST("/v1/customers", {
-        body: { externalId: externalId.trim(), name: name.trim() || null, metadata: {} },
-      });
-      if (error) throw new Error((error as { error?: { message?: string } }).error?.message ?? "Unknown error");
+      await createCustomerAction(externalId.trim(), name.trim() || null);
       toast.success("Customer created");
       handleOpenChange(false);
     } catch (err) {

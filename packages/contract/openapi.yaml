@@ -20,6 +20,8 @@ security:
   - ApiKeyAuth: []
 
 tags:
+  - name: Dashboard Auth
+    description: Human-user (dashboard) authentication. Uses session tokens, not API keys.
   - name: Events
   - name: Meters
   - name: Customers
@@ -28,6 +30,64 @@ tags:
   - name: Webhooks
 
 paths:
+  /auth/login:
+    post:
+      tags: [Dashboard Auth]
+      summary: Log in to the dashboard
+      description: >
+        Verifies email + password and returns a session token. Store the token
+        and pass it as `Authorization: Bearer <token>` on subsequent dashboard
+        requests. The token expires after 7 days.
+      operationId: dashboardLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Dashboard Auth]
+      summary: Log out (invalidate the current session)
+      operationId: dashboardLogout
+      security:
+        - DashboardAuth: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/me:
+    get:
+      tags: [Dashboard Auth]
+      summary: Return the currently authenticated dashboard user
+      operationId: dashboardMe
+      security:
+        - DashboardAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+
   /v1/events:
     post:
       tags: [Events]
@@ -457,6 +517,10 @@ components:
       type: http
       scheme: bearer
       description: "Pass the API key as a bearer token. Authorization: Bearer <api_key>."
+    DashboardAuth:
+      type: http
+      scheme: bearer
+      description: "Dashboard session token returned by POST /auth/login. Authorization: Bearer <session_token>."
 
   parameters:
     Limit:
@@ -502,6 +566,33 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    DashboardUser:
+      type: object
+      required: [id, orgId, email, role]
+      properties:
+        id: { type: string }
+        orgId: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [admin, viewer]
+
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: Session token. Pass as Authorization Bearer on subsequent requests.
+        user: { $ref: '#/components/schemas/DashboardUser' }
+
     Aggregation:
       type: string
       enum: [SUM, COUNT, AVG, MIN, MAX, UNIQUE_COUNT]
